@@ -1,0 +1,45 @@
+kind: pipeline
+name: ssh-server
+
+steps:
+- name: build
+  image: plugins/gcr
+  settings:
+    #debug: true
+    dockerfile: Dockerfile
+    auto_tag: true
+    force_tag: true
+    tags:
+     - latest
+     - ${DRONE_TAG}
+    registry: gcr.io
+    repo: gcr.io/${DRONE_REPO}
+    json_key:
+      from_secret: google-gcr
+  when:
+    branch: [ master ]
+
+- name: deploy
+  image: quay.io/honestbee/drone-kubernetes
+  environment:
+    PLUGIN_KUBERNETES_SERVER:
+      from_secret: k8s-address
+    PLUGIN_KUBERNETES_CERT:
+      from_secret: k8s-ca-cert
+    PLUGIN_KUBERNETES_TOKEN: 
+      from_secret: k8s-token
+    PLUGIN_NAMESPACE:
+      from_secret: k8s-namespace
+    PLUGIN_DEPLOYMENT: ${DRONE_REPO_NAME}
+    PLUGIN_REPO: gcr.io/${DRONE_REPO}
+    PLUGIN_CONTAINER: ${DRONE_REPO_NAME}
+    PLUGIN_TAG: ${DRONE_TAG}
+  when:
+    branch: [ master ]
+
+trigger:
+  event:
+  - push
+  - tag
+  - pull_request
+  - promote
